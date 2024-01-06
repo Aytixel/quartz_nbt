@@ -21,11 +21,31 @@ use std::{
     io::{Cursor, Read, Write},
 };
 
+/// Enum describing what to do with the root name
+pub enum RootName<'a> {
+    /// There is a root name
+    Some(&'a str),
+    /// There is no root name
+    None,
+    /// There is no root name and the zero length is not included in the binary
+    Ignore,
+}
+
+impl<'a> RootName<'a> {
+    fn to_option(self) -> Option<&'a str> {
+        match self {
+            RootName::Some(value) => Some(value),
+            RootName::None => Some(""),
+            RootName::Ignore => None,
+        }
+    }
+}
+
 /// Serializes the given value as binary NBT data, returning the resulting Vec. The value must
 /// be a struct or non-unit enum variant, else the serializer will return with an error.
 pub fn serialize<T: Serialize>(
     value: &T,
-    root_name: Option<&str>,
+    root_name: RootName<'_>,
     flavor: Flavor,
 ) -> Result<Vec<u8>, NbtIoError> {
     let mut cursor = Cursor::new(Vec::<u8>::new());
@@ -40,7 +60,7 @@ pub fn serialize<T: Serialize>(
 /// [`serialize`]: crate::serde::serialize
 pub fn serialize_unchecked<T: Serialize>(
     value: &T,
-    root_name: Option<&str>,
+    root_name: RootName<'_>,
     flavor: Flavor,
 ) -> Result<Vec<u8>, NbtIoError> {
     let mut cursor = Cursor::new(Vec::<u8>::new());
@@ -55,7 +75,7 @@ pub fn serialize_unchecked<T: Serialize>(
 pub fn serialize_into<W: Write, T: Serialize>(
     writer: &mut W,
     value: &T,
-    root_name: Option<&str>,
+    root_name: RootName<'_>,
     flavor: Flavor,
 ) -> Result<(), NbtIoError> {
     let (mode, compression) = match flavor {
@@ -89,7 +109,7 @@ pub fn serialize_into<W: Write, T: Serialize>(
 pub fn serialize_into_unchecked<W: Write, T: Serialize>(
     writer: &mut W,
     value: &T,
-    root_name: Option<&str>,
+    root_name: RootName<'_>,
     flavor: Flavor,
 ) -> Result<(), NbtIoError> {
     let (mode, compression) = match flavor {
@@ -149,10 +169,12 @@ pub fn deserialize_from<R: Read, T: DeserializeOwned>(
 ) -> Result<(T, String), NbtIoError> {
     match flavor {
         Flavor::Uncompressed => deserialize_from_raw(reader),
-        Flavor::ZlibCompressed | Flavor::ZlibCompressedWith(_) =>
-            deserialize_from_raw(&mut ZlibDecoder::new(reader)),
-        Flavor::GzCompressed | Flavor::GzCompressedWith(_) =>
-            deserialize_from_raw(&mut GzDecoder::new(reader)),
+        Flavor::ZlibCompressed | Flavor::ZlibCompressedWith(_) => {
+            deserialize_from_raw(&mut ZlibDecoder::new(reader))
+        }
+        Flavor::GzCompressed | Flavor::GzCompressedWith(_) => {
+            deserialize_from_raw(&mut GzDecoder::new(reader))
+        }
     }
 }
 

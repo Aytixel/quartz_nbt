@@ -1,18 +1,13 @@
 use super::{
     array::{BYTE_ARRAY_NICHE, INT_ARRAY_NICHE, LONG_ARRAY_NICHE},
     util::{DefaultSerializer, Ser},
+    RootName,
 };
 use crate::{io::NbtIoError, raw};
 use serde::{
     ser::{
-        Impossible,
-        SerializeMap,
-        SerializeSeq,
-        SerializeStruct,
-        SerializeStructVariant,
-        SerializeTuple,
-        SerializeTupleStruct,
-        SerializeTupleVariant,
+        Impossible, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
+        SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
     },
     Serialize,
 };
@@ -32,16 +27,16 @@ pub type UncheckedSerializer<'a, W> = Ser<SerializerImpl<'a, W, Unchecked>>;
 impl<'a, W: Write> Serializer<'a, W> {
     /// Constructs a new serializer with the given writer and root name. If no root name is specified,
     /// then an empty string is written to the header.
-    pub fn new(writer: &'a mut W, root_name: Option<&'a str>) -> Self {
-        SerializerImpl::new(writer, BorrowedPrefix::new(root_name.unwrap_or(""))).into_serializer()
+    pub fn new(writer: &'a mut W, root_name: RootName<'a>) -> Self {
+        SerializerImpl::new(writer, BorrowedPrefix::new(root_name.to_option())).into_serializer()
     }
 }
 
 impl<'a, W: Write> UncheckedSerializer<'a, W> {
     /// Constructs a new unchecked serializer with the given writer and root name, If no root name is
     /// specified then an empty string is written to the header.
-    pub fn new(writer: &'a mut W, root_name: Option<&'a str>) -> Self {
-        SerializerImpl::new(writer, BorrowedPrefix::new(root_name.unwrap_or(""))).into_serializer()
+    pub fn new(writer: &'a mut W, root_name: RootName<'a>) -> Self {
+        SerializerImpl::new(writer, BorrowedPrefix::new(root_name.to_option())).into_serializer()
     }
 }
 
@@ -102,7 +97,7 @@ impl<'a, W: Write, C: TypeChecker> DefaultSerializer for SerializerImpl<'a, W, C
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
         self.root_name.write(self.writer, 0xA)?;
-        let prefix = BorrowedPrefix::new(variant);
+        let prefix = BorrowedPrefix::new(Some(variant));
         SerializeCompoundEntry::new(self.writer, prefix).serialize_seq(Some(len))
     }
 
@@ -147,7 +142,8 @@ struct SerializeArray<'a, W> {
 }
 
 impl<'a, W> SerializeArray<'a, W>
-where W: Write
+where
+    W: Write,
 {
     #[inline]
     fn new(writer: &'a mut W) -> Self {
@@ -156,7 +152,8 @@ where W: Write
 }
 
 impl<'a, W> DefaultSerializer for SerializeArray<'a, W>
-where W: Write
+where
+    W: Write,
 {
     type Error = NbtIoError;
     type Ok = ();
@@ -203,14 +200,17 @@ where W: Write
 }
 
 impl<'a, W> SerializeSeq for SerializeArray<'a, W>
-where W: Write
+where
+    W: Write,
 {
     type Error = NbtIoError;
     type Ok = ();
 
     #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         value.serialize(
             SerializeListElement::new(self.writer, NoPrefix, &UNCHECKED).into_serializer(),
         )
@@ -223,14 +223,17 @@ where W: Write
 }
 
 impl<'a, W> SerializeTuple for SerializeArray<'a, W>
-where W: Write
+where
+    W: Write,
 {
     type Error = NbtIoError;
     type Ok = ();
 
     #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         <Self as SerializeSeq>::serialize_element(self, value)
     }
 
@@ -241,14 +244,17 @@ where W: Write
 }
 
 impl<'a, W> SerializeTupleStruct for SerializeArray<'a, W>
-where W: Write
+where
+    W: Write,
 {
     type Error = NbtIoError;
     type Ok = ();
 
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         <Self as SerializeSeq>::serialize_element(self, value)
     }
 
@@ -288,7 +294,9 @@ where
 
     #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         match self.length.take() {
             None => value.serialize(
                 SerializeListElement::new(self.writer, NoPrefix, &self.type_checker)
@@ -326,7 +334,9 @@ where
 
     #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         <Self as SerializeSeq>::serialize_element(self, value)
     }
 
@@ -346,7 +356,9 @@ where
 
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         <Self as SerializeSeq>::serialize_element(self, value)
     }
 
@@ -366,7 +378,9 @@ where
 
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         <Self as SerializeSeq>::serialize_element(self, value)
     }
 
@@ -511,7 +525,9 @@ where
 
     #[inline]
     fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok, Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         Err(NbtIoError::OptionInList)
     }
 
@@ -579,7 +595,7 @@ where
         self.type_checker.verify(0xA)?;
         self.prefix.write(self.writer, 0xA)?;
         value.serialize(
-            SerializeCompoundEntry::<_, C, _>::new(self.writer, BorrowedPrefix::new(variant))
+            SerializeCompoundEntry::<_, C, _>::new(self.writer, BorrowedPrefix::new(Some(variant)))
                 .into_serializer(),
         )?;
         raw::write_u8(self.writer, raw::id_for_tag(None))?;
@@ -624,7 +640,7 @@ where
         self.prefix.write(self.writer, 0xA)?;
 
         // Write the compound
-        let prefix = BorrowedPrefix::new(variant);
+        let prefix = BorrowedPrefix::new(Some(variant));
         SerializeCompoundEntry::new(self.writer, prefix).serialize_seq(Some(len))
     }
 
@@ -689,7 +705,9 @@ impl<'a, W: Write, C: TypeChecker> SerializeMap for SerializeCompound<'a, W, C> 
 
     #[inline]
     fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         let mut cursor = Cursor::new(Vec::new());
         key.serialize(SerializeKey::new(&mut cursor).into_serializer())?;
         self.key = Some(cursor.into_inner().into_boxed_slice());
@@ -698,7 +716,9 @@ impl<'a, W: Write, C: TypeChecker> SerializeMap for SerializeCompound<'a, W, C> 
 
     #[inline]
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         let key = self
             .key
             .take()
@@ -719,7 +739,7 @@ impl<'a, W: Write, C: TypeChecker> SerializeMap for SerializeCompound<'a, W, C> 
         K: Serialize,
         V: Serialize,
     {
-        let prefix = BorrowedPrefix::new(key);
+        let prefix = BorrowedPrefix::new(Some(key));
         value.serialize(
             SerializeCompoundEntry::<_, C, _>::new(self.writer, prefix).into_serializer(),
         )
@@ -745,7 +765,7 @@ impl<'a, W: Write, C: TypeChecker> SerializeStruct for SerializeCompound<'a, W, 
     where
         T: Serialize,
     {
-        let prefix = BorrowedPrefix::new(key);
+        let prefix = BorrowedPrefix::new(Some(key));
         value.serialize(
             SerializeCompoundEntry::<_, C, _>::new(self.writer, prefix).into_serializer(),
         )
@@ -896,7 +916,9 @@ where
 
     #[inline]
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
-    where T: Serialize {
+    where
+        T: Serialize,
+    {
         value.serialize(self.into_serializer())
     }
 
@@ -959,7 +981,7 @@ where
     {
         self.prefix.write(self.writer, 0xA)?;
         value.serialize(
-            SerializeCompoundEntry::<_, C, _>::new(self.writer, BorrowedPrefix::new(variant))
+            SerializeCompoundEntry::<_, C, _>::new(self.writer, BorrowedPrefix::new(Some(variant)))
                 .into_serializer(),
         )?;
         raw::write_u8(self.writer, raw::id_for_tag(None))?;
@@ -997,7 +1019,7 @@ where
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
         self.prefix.write(self.writer, 0xA)?;
-        let prefix = BorrowedPrefix::new(variant);
+        let prefix = BorrowedPrefix::new(Some(variant));
         SerializeCompoundEntry::new(self.writer, prefix).serialize_seq(Some(len))
     }
 
@@ -1108,7 +1130,7 @@ impl TypeChecker for Homogenous {
     #[inline]
     fn verify(&self, tag_id: u8) -> Result<(), NbtIoError> {
         match self.id.get() {
-            Some(id) =>
+            Some(id) => {
                 if id == tag_id {
                     Ok(())
                 } else {
@@ -1116,7 +1138,8 @@ impl TypeChecker for Homogenous {
                         list_type: id,
                         encountered_type: tag_id,
                     })
-                },
+                }
+            }
             None => {
                 self.id.set(Some(tag_id));
                 Ok(())
@@ -1169,12 +1192,12 @@ impl Prefix for LengthPrefix {
 }
 
 pub struct BorrowedPrefix<K> {
-    key: K,
+    key: Option<K>,
 }
 
 impl<K: Serialize> BorrowedPrefix<K> {
     #[inline]
-    fn new(key: K) -> Self {
+    fn new(key: Option<K>) -> Self {
         BorrowedPrefix { key }
     }
 }
@@ -1182,8 +1205,11 @@ impl<K: Serialize> BorrowedPrefix<K> {
 impl<K: Serialize> Prefix for BorrowedPrefix<K> {
     #[inline]
     fn write_raw<W: Write>(self, writer: &mut W) -> Result<(), NbtIoError> {
-        self.key
-            .serialize(SerializeKey::new(writer).into_serializer())
+        if let Some(key) = self.key {
+            key.serialize(SerializeKey::new(writer).into_serializer())
+        } else {
+            Ok(())
+        }
     }
 }
 

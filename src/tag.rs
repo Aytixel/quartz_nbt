@@ -1,8 +1,7 @@
 use crate::{
     raw,
     snbt::{self, SnbtError},
-    NbtReprError,
-    NbtStructureError,
+    NbtReprError, NbtStructureError,
 };
 use std::{
     borrow::{Borrow, BorrowMut, Cow},
@@ -265,10 +264,11 @@ impl NbtTag {
                     snbt_string.push_str("\\t");
                     continue;
                 }
-                _ =>
+                _ => {
                     if ch == surrounding || ch == '\\' {
                         snbt_string.push('\\');
-                    },
+                    }
+                }
             }
             snbt_string.push(ch);
         }
@@ -1391,23 +1391,19 @@ impl Extend<(String, NbtTag)> for NbtCompound {
 }
 
 #[cfg(feature = "serde")]
-pub use serde_impl::*;
-
-#[cfg(feature = "serde")]
 mod serde_impl {
     use super::*;
     use crate::serde::{Array, TypeHint};
     use serde::{
         de::{self, MapAccess, Visitor},
-        Deserialize,
-        Deserializer,
-        Serialize,
-        Serializer,
+        Deserialize, Deserializer, Serialize, Serializer,
     };
 
     impl Serialize for NbtTag {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer {
+        where
+            S: Serializer,
+        {
             match self {
                 &NbtTag::Byte(value) => serializer.serialize_i8(value),
                 &NbtTag::Short(value) => serializer.serialize_i16(value),
@@ -1428,7 +1424,9 @@ mod serde_impl {
     impl<'de> Deserialize<'de> for NbtTag {
         #[inline]
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de> {
+        where
+            D: Deserializer<'de>,
+        {
             deserializer.deserialize_any(NbtTagVisitor)
         }
     }
@@ -1444,78 +1442,104 @@ mod serde_impl {
 
         #[inline]
         fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Byte(if v { 1 } else { 0 }))
         }
 
         #[inline]
         fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Byte(v))
         }
 
         #[inline]
         fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Byte(v as i8))
         }
 
         #[inline]
         fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Short(v))
         }
 
         #[inline]
         fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Int(v))
         }
 
         #[inline]
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Long(v))
         }
 
         #[inline]
         fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Float(v))
         }
 
         #[inline]
         fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::Double(v))
         }
 
         #[inline]
         fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             self.visit_byte_buf(v.to_owned())
         }
 
         #[inline]
         fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::ByteArray(raw::cast_byte_buf_to_signed(v)))
         }
 
         #[inline]
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::String(v.to_owned()))
         }
 
         #[inline]
         fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-        where E: de::Error {
+        where
+            E: de::Error,
+        {
             Ok(NbtTag::String(v))
         }
 
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-        where A: MapAccess<'de> {
+        where
+            A: MapAccess<'de>,
+        {
             let mut dest = match map.size_hint() {
                 Some(hint) => Map::with_capacity(hint),
                 None => Map::new(),
@@ -1527,7 +1551,9 @@ mod serde_impl {
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where A: de::SeqAccess<'de> {
+        where
+            A: de::SeqAccess<'de>,
+        {
             enum ArbitraryList {
                 Byte(Vec<i8>),
                 Int(Vec<i32>),
@@ -1571,18 +1597,21 @@ mod serde_impl {
                     (tag, list @ ArbitraryList::Indeterminate) => {
                         let size = seq.size_hint();
                         match tag {
-                            NbtTag::Byte(value) =>
-                                *list = ArbitraryList::Byte(init_vec(value, size)),
+                            NbtTag::Byte(value) => {
+                                *list = ArbitraryList::Byte(init_vec(value, size))
+                            }
                             NbtTag::Int(value) => *list = ArbitraryList::Int(init_vec(value, size)),
-                            NbtTag::Long(value) =>
-                                *list = ArbitraryList::Long(init_vec(value, size)),
+                            NbtTag::Long(value) => {
+                                *list = ArbitraryList::Long(init_vec(value, size))
+                            }
                             tag => *list = ArbitraryList::Tag(init_vec(tag, size)),
                         }
                     }
-                    _ =>
+                    _ => {
                         return Err(de::Error::custom(
                             "tag type mismatch when deserializing array",
-                        )),
+                        ))
+                    }
                 }
             }
 
@@ -1610,7 +1639,9 @@ mod serde_impl {
     impl Serialize for NbtList {
         #[inline]
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer {
+        where
+            S: Serializer,
+        {
             self.0.serialize(serializer)
         }
     }
@@ -1618,7 +1649,9 @@ mod serde_impl {
     impl<'de> Deserialize<'de> for NbtList {
         #[inline]
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de> {
+        where
+            D: Deserializer<'de>,
+        {
             Ok(NbtList(Deserialize::deserialize(deserializer)?))
         }
     }
@@ -1626,7 +1659,9 @@ mod serde_impl {
     impl Serialize for NbtCompound {
         #[inline]
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer {
+        where
+            S: Serializer,
+        {
             self.0.serialize(serializer)
         }
     }
@@ -1634,7 +1669,9 @@ mod serde_impl {
     impl<'de> Deserialize<'de> for NbtCompound {
         #[inline]
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de> {
+        where
+            D: Deserializer<'de>,
+        {
             Ok(NbtCompound(Deserialize::deserialize(deserializer)?))
         }
     }
